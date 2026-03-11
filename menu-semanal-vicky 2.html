@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Menú Vicky" />
+<title>Menú Semanal – Vicky</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    background: #F2F2F7;
+    font-family: -apple-system, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::-webkit-scrollbar { width: 0; }
+  input, textarea, button { font-family: inherit; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+const { useState, useRef } = React;
+
+const DAYS       = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+const DAYS_SHORT = ["L","M","X","J","V","S","D"];
+
+const DAY_COLORS = [
+  { bg:"#FFF0E6", accent:"#FF8C42", light:"#FFD4B2" },
+  { bg:"#E8F4E8", accent:"#34A853", light:"#B8E0B8" },
+  { bg:"#E8EEF8", accent:"#4A7BC9", light:"#B8CCF0" },
+  { bg:"#F5E8F5", accent:"#9B59B6", light:"#DDB8F0" },
+  { bg:"#FFF8E1", accent:"#F5A623", light:"#FFE5A0" },
+  { bg:"#E8F8F5", accent:"#1ABC9C", light:"#A8DDD8" },
+  { bg:"#FDE8EC", accent:"#E05B6B", light:"#F5B8C8" },
+];
+
+const INITIAL_MENU = {
+  Lunes:     { almuerzo:"Milanesa con puré",     cena:"Sopa de verduras",   lunch:"Sandwich de queso" },
+  Martes:    { almuerzo:"Pasta con tuco",         cena:"Ensalada mixta",     lunch:"Fruta y yogur" },
+  Miércoles: { almuerzo:"Tarta de brócoli",       cena:"Pollo con ensalada", lunch:"Galletitas" },
+  Jueves:    { almuerzo:"Tortilla de papas",      cena:"Pasta salad",        lunch:"Manzana y barra" },
+  Viernes:   { almuerzo:"Churrasco con ensalada", cena:"Pizza",              lunch:"Tostadas" },
+  Sábado:    { almuerzo:"Milanesa con puré",      cena:"Milanesa con puré",  lunch:"" },
+  Domingo:   { almuerzo:"",                       cena:"Asado",              lunch:"" },
+};
+
+const INITIAL_SHOPPING = [
+  { id:1, text:"Brócoli", done:false },
+  { id:2, text:"Pollo",   done:false },
+  { id:3, text:"Huevos",  done:false },
+  { id:4, text:"Queso",   done:false },
+];
+
+const todayDow  = new Date().getDay();
+const todayName = DAYS[todayDow === 0 ? 6 : todayDow - 1];
+
+/* ── App ──────────────────────────────────────────────────── */
+function App() {
+  const [screen,       setScreen]       = useState("home");
+  const [menu,         setMenu]         = useState(INITIAL_MENU);
+  const [shopping,     setShopping]     = useState(INITIAL_SHOPPING);
+  const [nextId,       setNextId]       = useState(INITIAL_SHOPPING.length + 1);
+  const [selectedDay,  setSelectedDay]  = useState(todayName);
+  const [editingDay,   setEditingDay]   = useState(null);
+  const [editingField, setEditingField] = useState(null);
+  const [editValue,    setEditValue]    = useState("");
+  const [weekOffset,   setWeekOffset]   = useState(0);
+
+  const weekDates = (() => {
+    const base   = new Date();
+    const dow    = base.getDay();
+    const monday = new Date(base);
+    monday.setDate(base.getDate() - (dow === 0 ? 6 : dow - 1) + weekOffset * 7);
+    return Array.from({length:7}, (_,i) => {
+      const d = new Date(monday); d.setDate(monday.getDate() + i); return d;
+    });
+  })();
+
+  const startEdit = (day, field, value) => { setEditingDay(day); setEditingField(field); setEditValue(value); };
+  const saveEdit  = () => {
+    if (editingDay && editingField)
+      setMenu(p => ({...p, [editingDay]:{...p[editingDay],[editingField]:editValue}}));
+    setEditingDay(null); setEditingField(null);
+  };
+
+  const monthLabel = weekDates[0].toLocaleString("es-ES",{month:"long"}) + " " + weekDates[0].getFullYear();
+
+  const toggleItem = id => setShopping(p => p.map(i => i.id===id ? {...i,done:!i.done} : i));
+  const deleteItem = id => setShopping(p => p.filter(i => i.id!==id));
+  const addItem    = text => {
+    if (!text.trim()) return;
+    setShopping(p => [...p, {id:nextId, text:text.trim(), done:false}]);
+    setNextId(p => p+1);
+  };
+  const clearDone  = () => setShopping(p => p.filter(i => !i.done));
+  const pendingCount = shopping.filter(i=>!i.done).length;
+
+  return (
+    <div style={{fontFamily:"-apple-system,'SF Pro Text','Helvetica Neue',Helvetica,Arial,sans-serif",
+      minHeight:"100vh",background:"#F2F2F7",maxWidth:430,margin:"0 auto",position:"relative"}}>
+
+      {screen==="home"    && <HomeScreen menu={menu} editingDay={editingDay} editingField={editingField}
+          editValue={editValue} setEditValue={setEditValue} startEdit={startEdit} saveEdit={saveEdit} />}
+      {screen==="menu"    && <MenuScreen menu={menu} weekDates={weekDates} selectedDay={selectedDay}
+          setSelectedDay={setSelectedDay} weekOffset={weekOffset} setWeekOffset={setWeekOffset}
+          monthLabel={monthLabel} editingDay={editingDay} editingField={editingField}
+          editValue={editValue} setEditValue={setEditValue} startEdit={startEdit} saveEdit={saveEdit} />}
+      {screen==="comprar" && <ShoppingScreen shopping={shopping} toggleItem={toggleItem}
+          deleteItem={deleteItem} addItem={addItem} clearDone={clearDone} />}
+
+      {/* Tab bar */}
+      <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",
+        width:"100%",maxWidth:430,background:"rgba(255,255,255,0.93)",
+        backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",
+        borderTop:"0.5px solid rgba(0,0,0,0.13)",
+        display:"flex",justifyContent:"space-around",
+        padding:"10px 0 20px",zIndex:200}}>
+        <TabBtn active={screen==="home"}    icon="🏠" label="Inicio"   onClick={()=>setScreen("home")} />
+        <TabBtn active={screen==="menu"}    icon="📅" label="Menú"     onClick={()=>setScreen("menu")} />
+        <TabBtn active={screen==="comprar"} icon="🛒" label="Comprar"  onClick={()=>setScreen("comprar")} badge={pendingCount||null} />
+      </div>
+    </div>
+  );
+}
+
+function TabBtn({active,icon,label,onClick,badge}) {
+  return (
+    <button onClick={onClick} style={{background:"none",border:"none",cursor:"pointer",
+      display:"flex",flexDirection:"column",alignItems:"center",gap:2,padding:"0 18px",
+      color:active?"#FF8C42":"#8E8E93",position:"relative"}}>
+      <span style={{fontSize:24,lineHeight:1}}>{icon}</span>
+      <span style={{fontSize:10,fontWeight:active?600:400,color:active?"#FF8C42":"#8E8E93"}}>{label}</span>
+      {badge && <span style={{position:"absolute",top:-2,right:10,background:"#FF3B30",color:"white",
+        borderRadius:10,fontSize:10,fontWeight:700,minWidth:18,height:18,
+        display:"flex",alignItems:"center",justifyContent:"center",padding:"0 5px"}}>{badge}</span>}
+    </button>
+  );
+}
+
+/* ── Home ──────────────────────────────────────────────────── */
+function HomeScreen({menu,editingDay,editingField,editValue,setEditValue,startEdit,saveEdit}) {
+  const dateStr = new Date().toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long"});
+  return (
+    <div style={{paddingBottom:92}}>
+      <div style={{background:"linear-gradient(150deg,#FF8C42 0%,#FF5F1F 100%)",
+        padding:"54px 24px 28px",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:-40,right:-40,width:150,height:150,borderRadius:"50%",background:"rgba(255,255,255,0.1)"}}/>
+        <div style={{position:"absolute",bottom:-30,left:30,width:100,height:100,borderRadius:"50%",background:"rgba(255,255,255,0.07)"}}/>
+        <p style={{fontSize:12,fontWeight:500,color:"rgba(255,255,255,0.85)",letterSpacing:0.4,textTransform:"capitalize",marginBottom:6}}>{dateStr}</p>
+        <h1 style={{fontSize:22,fontWeight:700,color:"white",lineHeight:1.35}}>¿Qué vamos a comer<br/>hoy, Vicky? 🍽️</h1>
+      </div>
+      <div style={{padding:"18px 16px 0"}}>
+        {DAYS.map((day,i)=>(
+          <DayCard key={day} day={day} color={DAY_COLORS[i]} data={menu[day]} isToday={day===todayName}
+            editingDay={editingDay} editingField={editingField} editValue={editValue}
+            setEditValue={setEditValue} startEdit={startEdit} saveEdit={saveEdit} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DayCard({day,color,data,isToday,editingDay,editingField,editValue,setEditValue,startEdit,saveEdit}) {
+  const isEd = f => editingDay===day && editingField===f;
+  return (
+    <div style={{background:color.bg,borderRadius:20,padding:"16px 17px",marginBottom:13,
+      border:isToday?`2px solid ${color.accent}`:"2px solid transparent",
+      boxShadow:isToday?`0 4px 18px ${color.accent}28`:"0 1px 5px rgba(0,0,0,0.05)"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <h2 style={{fontSize:17,fontWeight:700,color:color.accent}}>{day}</h2>
+        {isToday && <span style={{background:color.accent,color:"white",fontSize:10,fontWeight:700,
+          padding:"3px 10px",borderRadius:20,letterSpacing:0.3,textTransform:"uppercase"}}>Hoy</span>}
+      </div>
+      {[["☀️ Almuerzo","almuerzo"],["🌙 Cena","cena"],["🎒 Lunch Elo","lunch"]]
+        .filter(([,field]) => !(field==="lunch" && (day==="Sábado" || day==="Domingo")))
+        .map(([label,field])=>(
+          <MealField key={field} label={label} field={field} day={day} data={data} color={color}
+            isEditing={isEd(field)} editValue={editValue} setEditValue={setEditValue}
+            startEdit={startEdit} saveEdit={saveEdit} />
+        ))}
+    </div>
+  );
+}
+
+function MealField({label,field,day,data,color,isEditing,editValue,setEditValue,startEdit,saveEdit}) {
+  return (
+    <div style={{marginBottom:9}}>
+      <p style={{fontSize:10,fontWeight:600,color:color.accent,letterSpacing:0.6,textTransform:"uppercase",marginBottom:3}}>{label}</p>
+      {isEditing ? (
+        <div style={{display:"flex",gap:6}}>
+          <input autoFocus value={editValue} onChange={e=>setEditValue(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveEdit()}
+            style={{flex:1,border:`1.5px solid ${color.accent}`,borderRadius:10,padding:"7px 11px",
+              fontSize:14,color:"#1C1C1E",background:"white",outline:"none"}} />
+          <button onClick={saveEdit} style={{background:color.accent,color:"white",border:"none",
+            borderRadius:10,padding:"7px 13px",cursor:"pointer",fontSize:15,fontWeight:600}}>✓</button>
+        </div>
+      ) : (
+        <div onClick={()=>startEdit(day,field,data[field]||"")}
+          style={{background:"rgba(255,255,255,0.72)",borderRadius:10,padding:"7px 12px",cursor:"pointer",
+            fontSize:14,fontWeight:400,color:data[field]?"#1C1C1E":"#C7C7CC",minHeight:34,
+            display:"flex",alignItems:"center",border:"1px solid rgba(255,255,255,0.5)"}}>
+          {data[field]||<span style={{fontStyle:"italic",fontSize:13,color:"#C7C7CC"}}>Tocar para agregar...</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Menu Screen ───────────────────────────────────────────── */
+function MenuScreen({menu,weekDates,selectedDay,setSelectedDay,weekOffset,setWeekOffset,monthLabel,
+  editingDay,editingField,editValue,setEditValue,startEdit,saveEdit}) {
+
+  const dayData = menu[selectedDay]||{almuerzo:"",cena:"",lunch:""};
+  const selIdx  = DAYS.indexOf(selectedDay);
+  const color   = DAY_COLORS[selIdx]||DAY_COLORS[0];
+  const tdi     = new Date().getDay(); const todayIdx = tdi===0?6:tdi-1;
+
+  return (
+    <div style={{paddingBottom:92}}>
+      <div style={{background:"linear-gradient(150deg,#2C2C2E 0%,#48484A 100%)",padding:"54px 24px 22px"}}>
+        <h1 style={{fontSize:24,fontWeight:700,color:"white",marginBottom:3}}>Menú Semanal</h1>
+        <p style={{fontSize:13,color:"rgba(255,255,255,0.5)",textTransform:"capitalize"}}>{monthLabel}</p>
+      </div>
+
+      <div style={{background:"white",padding:"14px 10px 10px",boxShadow:"0 2px 12px rgba(0,0,0,0.07)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,padding:"0 4px"}}>
+          <button onClick={()=>setWeekOffset(p=>p-1)} style={{background:"#F2F2F7",border:"none",borderRadius:10,
+            padding:"6px 14px",cursor:"pointer",fontSize:13,color:"#3A3A3C"}}>← Ant.</button>
+          <button onClick={()=>setWeekOffset(0)} style={{background:"none",border:"none",cursor:"pointer",
+            fontSize:13,fontWeight:600,color:"#FF8C42"}}>Hoy</button>
+          <button onClick={()=>setWeekOffset(p=>p+1)} style={{background:"#F2F2F7",border:"none",borderRadius:10,
+            padding:"6px 14px",cursor:"pointer",fontSize:13,color:"#3A3A3C"}}>Sig. →</button>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-around"}}>
+          {DAYS_SHORT.map((short,i)=>{
+            const dayName   = DAYS[i];
+            const isSel     = selectedDay===dayName;
+            const isTod     = weekOffset===0 && i===todayIdx;
+            const dc        = DAY_COLORS[i];
+            return (
+              <div key={i} onClick={()=>setSelectedDay(dayName)}
+                style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer",padding:"4px 2px"}}>
+                <span style={{fontSize:10,fontWeight:500,color:"#8E8E93",letterSpacing:0.3}}>{short}</span>
+                <div style={{width:34,height:34,borderRadius:"50%",
+                  background:isSel?dc.accent:isTod?dc.light:"transparent",
+                  display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.18s",
+                  boxShadow:isSel?`0 3px 10px ${dc.accent}55`:"none"}}>
+                  <span style={{fontSize:15,fontWeight:isSel||isTod?700:400,
+                    color:isSel?"white":isTod?dc.accent:"#1C1C1E"}}>
+                    {weekDates[i].getDate()}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{padding:"18px 16px 0"}}>
+        <div style={{background:color.bg,borderRadius:22,padding:"20px 18px",
+          border:`1.5px solid ${color.light}`,boxShadow:`0 6px 24px ${color.accent}14`}}>
+          <h2 style={{fontSize:22,fontWeight:700,color:color.accent,marginBottom:18}}>{selectedDay}</h2>
+          {[["☀️ Almuerzo","almuerzo"],["🌙 Cena","cena"],["🎒 Lunch Elo","lunch"]].map(([label,field])=>{
+            const isEd = editingDay===selectedDay && editingField===field;
+            return (
+              <div key={field} style={{marginBottom:14}}>
+                <p style={{fontSize:10,fontWeight:600,color:color.accent,letterSpacing:0.7,textTransform:"uppercase",marginBottom:4}}>{label}</p>
+                {isEd ? (
+                  <div style={{display:"flex",gap:8}}>
+                    <input autoFocus value={editValue} onChange={e=>setEditValue(e.target.value)} onKeyDown={e=>e.key==="Enter"&&saveEdit()}
+                      style={{flex:1,border:`2px solid ${color.accent}`,borderRadius:12,padding:"10px 14px",
+                        fontSize:15,color:"#1C1C1E",background:"white",outline:"none"}} />
+                    <button onClick={saveEdit} style={{background:color.accent,color:"white",border:"none",
+                      borderRadius:12,padding:"10px 16px",cursor:"pointer",fontSize:15,fontWeight:600}}>✓</button>
+                  </div>
+                ) : (
+                  <div onClick={()=>startEdit(selectedDay,field,dayData[field]||"")}
+                    style={{background:"rgba(255,255,255,0.78)",borderRadius:12,padding:"12px 15px",cursor:"pointer",
+                      fontSize:15,color:dayData[field]?"#1C1C1E":"#C7C7CC",minHeight:44,
+                      display:"flex",alignItems:"center",border:"1px solid rgba(255,255,255,0.6)"}}>
+                    {dayData[field]||<span style={{fontStyle:"italic",fontSize:14,color:"#C7C7CC"}}>Sin definir — tocar para agregar</span>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Shopping Screen ───────────────────────────────────────── */
+function ShoppingScreen({shopping,toggleItem,deleteItem,addItem,clearDone}) {
+  const [newText, setNewText] = useState("");
+  const inputRef = useRef();
+
+  const pending = shopping.filter(i=>!i.done);
+  const done    = shopping.filter(i=>i.done);
+
+  const handleAdd = () => {
+    if (!newText.trim()) return;
+    addItem(newText);
+    setNewText("");
+    inputRef.current?.focus();
+  };
+
+  return (
+    <div style={{paddingBottom:92}}>
+      {/* Header */}
+      <div style={{background:"linear-gradient(150deg,#1ABC9C 0%,#16A085 100%)",
+        padding:"54px 24px 28px",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:-40,right:-30,width:140,height:140,borderRadius:"50%",background:"rgba(255,255,255,0.1)"}}/>
+        <h1 style={{fontSize:24,fontWeight:700,color:"white",marginBottom:5}}>🛒 Lista de compras</h1>
+        <p style={{fontSize:13,color:"rgba(255,255,255,0.82)"}}>
+          {pending.length} producto{pending.length!==1?"s":""} pendiente{pending.length!==1?"s":""}
+        </p>
+      </div>
+
+      {/* Add input */}
+      <div style={{background:"white",margin:"16px 16px 0",borderRadius:16,
+        padding:"12px 14px",boxShadow:"0 2px 10px rgba(0,0,0,0.06)",
+        display:"flex",gap:10,alignItems:"center"}}>
+        <input ref={inputRef} value={newText} onChange={e=>setNewText(e.target.value)}
+          onKeyDown={e=>e.key==="Enter"&&handleAdd()}
+          placeholder="Agregar producto..."
+          style={{flex:1,border:"none",outline:"none",fontSize:15,color:"#1C1C1E",background:"transparent"}} />
+        <button onClick={handleAdd}
+          style={{background:"#1ABC9C",color:"white",border:"none",borderRadius:11,
+            width:36,height:36,cursor:"pointer",fontSize:24,fontWeight:300,
+            display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,lineHeight:1}}>
+          +
+        </button>
+      </div>
+
+      <div style={{padding:"14px 16px 0"}}>
+        {/* Pending */}
+        {pending.length > 0 && (
+          <div style={{background:"white",borderRadius:18,overflow:"hidden",
+            boxShadow:"0 2px 10px rgba(0,0,0,0.05)",marginBottom:16}}>
+            {pending.map((item,i)=>(
+              <ShoppingItem key={item.id} item={item}
+                onToggle={()=>toggleItem(item.id)} onDelete={()=>deleteItem(item.id)}
+                borderBottom={i<pending.length-1} />
+            ))}
+          </div>
+        )}
+
+        {/* Done */}
+        {done.length > 0 && (
+          <>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <p style={{fontSize:12,fontWeight:600,color:"#8E8E93",letterSpacing:0.4,textTransform:"uppercase"}}>
+                Comprado ({done.length})
+              </p>
+              <button onClick={clearDone} style={{background:"none",border:"none",cursor:"pointer",
+                fontSize:12,fontWeight:500,color:"#FF3B30"}}>Borrar todo</button>
+            </div>
+            <div style={{background:"white",borderRadius:18,overflow:"hidden",
+              boxShadow:"0 2px 10px rgba(0,0,0,0.04)",opacity:0.72}}>
+              {done.map((item,i)=>(
+                <ShoppingItem key={item.id} item={item}
+                  onToggle={()=>toggleItem(item.id)} onDelete={()=>deleteItem(item.id)}
+                  borderBottom={i<done.length-1} />
+              ))}
+            </div>
+          </>
+        )}
+
+        {shopping.length===0 && (
+          <div style={{textAlign:"center",padding:"60px 0"}}>
+            <p style={{fontSize:50,marginBottom:12}}>🎉</p>
+            <p style={{fontSize:17,fontWeight:600,color:"#3A3A3C",marginBottom:6}}>¡Lista vacía!</p>
+            <p style={{fontSize:14,color:"#8E8E93"}}>Agregá productos arriba</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ShoppingItem({item,onToggle,onDelete,borderBottom}) {
+  return (
+    <div style={{display:"flex",alignItems:"center",padding:"13px 16px",
+      borderBottom:borderBottom?"0.5px solid #F2F2F7":"none"}}>
+      {/* Circle checkbox */}
+      <div onClick={onToggle} style={{width:26,height:26,borderRadius:"50%",flexShrink:0,cursor:"pointer",
+        border:item.done?"none":"2px solid #D1D1D6",background:item.done?"#1ABC9C":"transparent",
+        display:"flex",alignItems:"center",justifyContent:"center",marginRight:14,transition:"all 0.18s",
+        boxShadow:item.done?"0 2px 8px rgba(26,188,156,0.35)":"none"}}>
+        {item.done && <span style={{color:"white",fontSize:13,fontWeight:700,lineHeight:1}}>✓</span>}
+      </div>
+
+      {/* Label */}
+      <span onClick={onToggle} style={{flex:1,cursor:"pointer",userSelect:"none",
+        fontSize:16,fontWeight:item.done?400:500,
+        color:item.done?"#AEAEB2":"#1C1C1E",
+        textDecoration:item.done?"line-through":"none",transition:"all 0.15s"}}>
+        {item.text}
+      </span>
+
+      {/* Delete */}
+      <button onClick={onDelete} style={{background:"none",border:"none",cursor:"pointer",
+        padding:"4px 0 4px 12px",fontSize:22,color:"#C7C7CC",lineHeight:1}}>×</button>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+</body>
+</html>
