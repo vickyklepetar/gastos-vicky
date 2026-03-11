@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Mis Gastos">
+<title>Mis Gastos — Vicky</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --coral: #FF4D4D;
+    --coral-light: #FF7A7A;
+    --coral-dark: #E03333;
+    --indigo: #3D5AFE;
+    --indigo-light: #536DFE;
+    --mint: #00C896;
+    --mint-light: #1DDBA5;
+    --amber: #FF9500;
+    --slate: #F5F5F7;
+    --white: #FFFFFF;
+    --text-primary: #1C1C1E;
+    --text-secondary: #6E6E73;
+    --text-tertiary: #AEAEB2;
+    --border: #E5E5EA;
+    --card: #FFFFFF;
+    --safe-bottom: env(safe-area-inset-bottom, 20px);
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    background: var(--slate);
+    color: var(--text-primary);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #app {
+    width: 100%; height: 100%;
+    max-width: 430px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    background: var(--slate);
+    overflow: hidden;
+  }
+
+  /* ===== SCREENS ===== */
+  .screen {
+    display: none;
+    flex: 1;
+    flex-direction: column;
+    overflow: hidden;
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    bottom: 72px;
+    animation: fadeIn .22s ease;
+  }
+  .screen.active { display: flex; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  /* ===== BOTTOM NAV ===== */
+  .bottom-nav {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: calc(72px + var(--safe-bottom));
+    background: var(--white);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    padding-top: 10px;
+    z-index: 100;
+    box-shadow: 0 -4px 20px rgba(0,0,0,.06);
+  }
+  .nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 4px 0;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform .15s;
+  }
+  .nav-item:active { transform: scale(.92); }
+  .nav-icon {
+    width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .nav-icon svg { width: 22px; height: 22px; stroke-width: 1.8; }
+  .nav-label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: .2px;
+    color: var(--text-tertiary);
+    transition: color .2s;
+  }
+  .nav-item.active .nav-label { color: var(--coral); }
+  .nav-item.active .nav-icon svg { stroke: var(--coral); }
+  .nav-item:not(.active) .nav-icon svg { stroke: var(--text-tertiary); }
+
+  /* ===== SCREEN: INICIO ===== */
+  #screen-inicio {
+    background: linear-gradient(160deg, #FF4D4D 0%, #FF8C00 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  #screen-inicio::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 280px; height: 280px;
+    background: rgba(255,255,255,.08);
+    border-radius: 50%;
+  }
+  #screen-inicio::after {
+    content: '';
+    position: absolute;
+    bottom: 40px; left: -80px;
+    width: 220px; height: 220px;
+    background: rgba(255,255,255,.06);
+    border-radius: 50%;
+  }
+
+  .inicio-header {
+    padding: 56px 28px 0;
+    position: relative; z-index: 2;
+  }
+  .inicio-greeting {
+    font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.2;
+    margin-bottom: 6px;
+  }
+  .inicio-sub {
+    font-size: 16px;
+    color: rgba(255,255,255,.82);
+    font-weight: 400;
+  }
+
+  .inicio-center {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    position: relative; z-index: 2;
+    padding-bottom: 20px;
+  }
+
+  /* Record button */
+  .record-btn-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+  .record-ring {
+    width: 140px; height: 140px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.15);
+    display: flex; align-items: center; justify-content: center;
+    animation: pulseRing 2.4s ease-in-out infinite;
+  }
+  @keyframes pulseRing {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,.3); }
+    50% { box-shadow: 0 0 0 20px rgba(255,255,255,.0); }
+  }
+  .record-btn {
+    width: 110px; height: 110px;
+    border-radius: 50%;
+    background: #fff;
+    border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,.22);
+    -webkit-tap-highlight-color: transparent;
+    transition: transform .12s, box-shadow .12s;
+    position: relative;
+  }
+  .record-btn:active { transform: scale(.93); box-shadow: 0 4px 16px rgba(0,0,0,.18); }
+  .record-btn svg { width: 38px; height: 38px; }
+  .record-btn.recording { background: var(--coral); }
+  .record-btn.recording svg { stroke: #fff; }
+  .record-btn-label {
+    font-size: 13px;
+    color: rgba(255,255,255,.85);
+    font-weight: 500;
+    letter-spacing: .3px;
+  }
+
+  /* Manual input */
+  .manual-section {
+    width: calc(100% - 48px);
+    background: rgba(255,255,255,.16);
+    backdrop-filter: blur(12px);
+    border-radius: 20px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .manual-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .manual-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,.7);
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    margin-bottom: 4px;
+  }
+  .manual-input {
+    flex: 1;
+    background: rgba(255,255,255,.25);
+    border: 1.5px solid rgba(255,255,255,.35);
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    font-size: 15px;
+    color: #fff;
+    outline: none;
+    transition: border-color .2s, background .2s;
+  }
+  .manual-input::placeholder { color: rgba(255,255,255,.55); }
+  .manual-input:focus { border-color: rgba(255,255,255,.75); background: rgba(255,255,255,.3); }
+  .manual-input.amount-input {
+    font-size: 20px;
+    font-weight: 600;
+    width: 140px;
+    flex: none;
+    text-align: center;
+  }
+  .manual-currency {
+    font-size: 20px;
+    font-weight: 600;
+    color: rgba(255,255,255,.8);
+  }
+  .btn-add {
+    width: 100%;
+    padding: 13px;
+    background: #fff;
+    border: none;
+    border-radius: 14px;
+    font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--coral-dark);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform .12s, background .15s;
+  }
+  .btn-add:active { transform: scale(.97); background: #f0f0f0; }
+
+  /* Payment method buttons */
+  .payment-group { display: flex; flex-direction: column; gap: 8px; }
+  .payment-btns { display: flex; gap: 8px; }
+  .payment-btn {
+    flex: 1; padding: 9px 6px;
+    background: rgba(255,255,255,.2);
+    border: 1.5px solid rgba(255,255,255,.3);
+    border-radius: 11px;
+    font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    font-size: 12px; font-weight: 500;
+    color: rgba(255,255,255,.85);
+    cursor: pointer; -webkit-tap-highlight-color: transparent;
+    transition: all .18s; text-align: center;
+  }
+  .payment-btn.selected {
+    background: rgba(255,255,255,.95);
+    border-color: #fff;
+    color: var(--coral-dark);
+    font-weight: 700;
+  }
+  .payment-btn:active { transform: scale(.95); }
+
+  /* Category select */
+  .category-select {
+    width: 100%; padding: 11px 36px 11px 14px;
+    background: rgba(255,255,255,.25) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='white' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 14px center;
+    border: 1.5px solid rgba(255,255,255,.35);
+    border-radius: 12px;
+    font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    font-size: 15px; color: #fff;
+    outline: none; appearance: none; -webkit-appearance: none; cursor: pointer;
+    transition: border-color .2s;
+  }
+  .category-select:focus { border-color: rgba(255,255,255,.75); }
+  .category-select option { color: var(--text-primary); background: #fff; }
+
+  /* Tags in expense list */
+  .expense-tags { display: flex; gap: 5px; margin-top: 4px; flex-wrap: wrap; }
+  .expense-tag {
+    font-size: 10px; font-weight: 600;
+    padding: 2px 8px; border-radius: 20px;
+    letter-spacing: .3px; text-transform: uppercase;
+  }
+  .tag-efectivo { background: #E8F5E9; color: #2E7D32; }
+  .tag-debito   { background: #E3F2FD; color: #1565C0; }
+  .tag-credito  { background: #FFF3E0; color: #E65100; }
+  .tag-cat      { background: #F3E5F5; color: #6A1B9A; }
+
+  /* Payment method buttons */
+  .payment-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .payment-btns {
+    display: flex;
+    gap: 8px;
+  }
+  .payment-btn {
+    flex: 1;
+    padding: 9px 6px;
+    background: rgba(255,255,255,.2);
+    border: 1.5px solid rgba(255,255,255,.3);
+    border-radius: 11px;
+    font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255,255,255,.85);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: all .18s;
+    text-align: center;
+    letter-spacing: .1px;
+  }
+  .payment-btn.selected {
+    background: rgba(255,255,255,.95);
+    border-color: #fff;
+    color: var(--coral-dark);
+    font-weight: 600;
+  }
+  .payment-btn:active { transform: scale(.95); }
+
+  /* Category selector */
+  .category-select {
+    width: 100%;
+    padding: 11px 14px;
+    background: rgba(255,255,255,.25);
+    border: 1.5px solid rgba(255,255,255,.35);
+    border-radius: 12px;
+    font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    font-size: 15px;
+    color: #fff;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='white' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+    cursor: pointer;
+    transition: border-color .2s, background .2s;
+  }
+  .category-select:focus { border-color: rgba(255,255,255,.75); background-color: rgba(255,255,255,.3); }
+  .category-select option { color: var(--text-primary); background: #fff; font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif; }
+
+  /* Recording overlay */
+  .recording-overlay {
+    display: none;
+    position: fixed;
+    inset: 0; z-index: 200;
+    background: rgba(0,0,0,.55);
+    backdrop-filter: blur(4px);
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .recording-overlay.active { display: flex; animation: fadeIn .2s ease; }
+  .recording-card {
+    background: #fff;
+    border-radius: 28px;
+    padding: 36px 32px;
+    width: calc(100% - 48px);
+    max-width: 360px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+  }
+  .recording-title {
+    font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+    text-align: center;
+  }
+  .recording-wave {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    height: 40px;
+  }
+  .wave-bar {
+    width: 4px;
+    background: var(--coral);
+    border-radius: 4px;
+    animation: wave 1s ease-in-out infinite;
+  }
+  .wave-bar:nth-child(1) { animation-delay: 0s; }
+  .wave-bar:nth-child(2) { animation-delay: .1s; }
+  .wave-bar:nth-child(3) { animation-delay: .2s; }
+  .wave-bar:nth-child(4) { animation-delay: .3s; }
+  .wave-bar:nth-child(5) { animation-delay: .4s; }
+  .wave-bar:nth-child(6) { animation-delay: .3s; }
+  .wave-bar:nth-child(7) { animation-delay: .2s; }
+  @keyframes wave {
+    0%, 100% { height: 8px; }
+    50% { height: 36px; }
+  }
+  .recording-timer {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+  .recording-hint {
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-align: center;
+  }
+  .btn-stop {
+    padding: 14px 36px;
+    background: var(--coral);
+    border: none;
+    border-radius: 50px;
+    font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Transcription result */
+  .transcription-card {
+    display: none;
+    background: #fff;
+    border-radius: 28px;
+    padding: 28px 24px;
+    width: calc(100% - 48px);
+    max-width: 360px;
+    gap: 16px;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0,0,0,.3);
+  }
+  .transcription-card.active { display: flex; }
+  .trans-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: .8px;
+  }
+  .trans-text {
+    font-size: 16px;
+    color: var(--text-primary);
+    line-height: 1.5;
+    padding: 12px 14px;
+    background: var(--slate);
+    border-radius: 12px;
+  }
+  .trans-amount-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .trans-amount {
+    flex: 1;
+    padding: 12px 14px;
+    border: 2px solid var(--coral);
+    border-radius: 12px;
+    font-size: 20px;
+    font-weight: 600;
+    font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    color: var(--text-primary);
+    outline: none;
+    text-align: center;
+  }
+  .trans-actions { display: flex; gap: 10px; }
+  .btn-confirm {
+    flex: 1; padding: 13px;
+    background: var(--coral);
+    border: none; border-radius: 14px;
+    font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    font-size: 15px; font-weight: 600;
+    color: #fff; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-cancel {
+    padding: 13px 18px;
+    background: var(--slate);
+    border: none; border-radius: 14px;
+    font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    font-size: 15px; font-weight: 500;
+    color: var(--text-secondary); cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ===== SCREEN: MI MES ===== */
+  #screen-mes {
+    background: var(--slate);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .mes-header {
+    background: var(--white);
+    padding: 56px 24px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .mes-title {
+    font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+  }
+  .month-tabs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .month-tabs::-webkit-scrollbar { display: none; }
+  .month-tab {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    border-radius: 50px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: all .2s;
+  }
+  .month-tab.active {
+    background: var(--coral);
+    border-color: var(--coral);
+    color: #fff;
+  }
+
+  .mes-body { padding: 20px 20px 16px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* Summary cards */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .summary-card {
+    background: var(--white);
+    border-radius: 20px;
+    padding: 18px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .summary-card.wide {
+    grid-column: span 2;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .summary-card-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: .7px;
+  }
+  .summary-card-value {
+    font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .summary-card-value.positive { color: var(--mint); }
+  .summary-card-value.negative { color: var(--coral); }
+  .summary-card-sub {
+    font-size: 12px;
+    color: var(--text-tertiary);
+  }
+  .progress-bar-wrap {
+    height: 6px;
+    background: var(--slate);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--coral), var(--amber));
+    border-radius: 10px;
+    transition: width .6s cubic-bezier(.4,0,.2,1);
+  }
+
+  /* Section heading */
+  .section-heading {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: .7px;
+    padding: 4px 4px 0;
+  }
+
+  /* Expense list */
+  .expense-list { display: flex; flex-direction: column; gap: 2px; }
+  .expense-item {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .expense-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .expense-info { flex: 1; }
+  .expense-desc {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+  .expense-date {
+    font-size: 12px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+  }
+  .expense-tags {
+    display: flex;
+    gap: 5px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+  .expense-tag {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 20px;
+    letter-spacing: .3px;
+    text-transform: uppercase;
+  }
+  .tag-efectivo { background: #E8F5E9; color: #2E7D32; }
+  .tag-debito   { background: #E3F2FD; color: #1565C0; }
+  .tag-credito  { background: #FFF3E0; color: #E65100; }
+  .tag-cat      { background: #F3E5F5; color: #6A1B9A; }
+  .expense-amount {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  /* Chart container */
+  .chart-wrap {
+    background: var(--white);
+    border-radius: 20px;
+    padding: 18px;
+  }
+  .chart-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 14px;
+  }
+
+  /* ===== SCREEN: FIJOS ===== */
+  #screen-fijos {
+    background: var(--slate);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .screen-header {
+    background: var(--white);
+    padding: 56px 24px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .screen-header-title {
+    font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .screen-header-sub {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+  .screen-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+  .fijo-list { display: flex; flex-direction: column; gap: 2px; }
+  .fijo-item {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .fijo-color {
+    width: 12px; height: 12px;
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .fijo-info { flex: 1; }
+  .fijo-name { font-size: 15px; font-weight: 500; color: var(--text-primary); }
+  .fijo-freq { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+  .fijo-amount { font-size: 16px; font-weight: 600; color: var(--text-primary); }
+  .fijo-delete {
+    width: 28px; height: 28px;
+    background: none; border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    opacity: .4;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .fijo-delete svg { width: 16px; height: 16px; stroke: var(--text-primary); }
+
+  .add-fijo-form {
+    background: var(--white);
+    border-radius: 20px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .form-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: .7px;
+    margin-bottom: 4px;
+    display: block;
+  }
+  .form-input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    font-size: 15px;
+    color: var(--text-primary);
+    background: var(--slate);
+    outline: none;
+    transition: border-color .2s;
+  }
+  .form-input:focus { border-color: var(--coral); background: #fff; }
+  .form-row { display: flex; gap: 10px; }
+  .form-row .form-group { flex: 1; }
+  .form-group { display: flex; flex-direction: column; }
+
+  .btn-primary {
+    padding: 14px;
+    background: var(--indigo);
+    border: none; border-radius: 14px;
+    font-family: -apple-system, 'SF Pro Text', 'Helvetica Neue', sans-serif;
+    font-size: 15px; font-weight: 600;
+    color: #fff; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform .12s;
+  }
+  .btn-primary:active { transform: scale(.97); }
+
+  /* ===== SCREEN: INGRESOS ===== */
+  #screen-ingresos {
+    background: var(--slate);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ingreso-list { display: flex; flex-direction: column; gap: 2px; }
+  .ingreso-item {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .ingreso-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--mint);
+    flex-shrink: 0;
+  }
+  .ingreso-info { flex: 1; }
+  .ingreso-name { font-size: 15px; font-weight: 500; color: var(--text-primary); }
+  .ingreso-date { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+  .ingreso-amount { font-size: 16px; font-weight: 600; color: var(--mint); }
+  .ingreso-delete {
+    width: 28px; height: 28px;
+    background: none; border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    opacity: .4;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ingreso-delete svg { width: 16px; height: 16px; stroke: var(--text-primary); }
+
+  .total-ingresos {
+    background: linear-gradient(135deg, #00C896, #00A878);
+    border-radius: 20px;
+    padding: 20px;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .total-ingresos-label {
+    font-size: 13px;
+    font-weight: 500;
+    opacity: .85;
+  }
+  .total-ingresos-value {
+    font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+  }
+
+  /* ===== SCREEN: CONFIG ===== */
+  #screen-config {
+    background: var(--slate);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .config-section {
+    background: var(--white);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+  .config-item {
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background .15s;
+  }
+  .config-item:last-child { border-bottom: none; }
+  .config-item:active { background: var(--slate); }
+  .config-item-icon {
+    width: 36px; height: 36px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .config-item-icon svg { width: 18px; height: 18px; stroke: #fff; stroke-width: 2; }
+  .config-item-info { flex: 1; }
+  .config-item-title { font-size: 15px; font-weight: 500; color: var(--text-primary); }
+  .config-item-sub { font-size: 12px; color: var(--text-tertiary); margin-top: 2px; }
+  .config-chevron { opacity: .3; }
+  .config-chevron svg { width: 16px; height: 16px; stroke: var(--text-primary); stroke-width: 2.5; }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 88px; left: 50%; transform: translateX(-50%) translateY(10px);
+    background: var(--text-primary);
+    color: #fff;
+    padding: 12px 20px;
+    border-radius: 50px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 300;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .3s, transform .3s;
+    white-space: nowrap;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Scrollbar hidden */
+  ::-webkit-scrollbar { display: none; }
+
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ===== INICIO ===== -->
+  <div class="screen active" id="screen-inicio">
+    <div class="inicio-header">
+      <div class="inicio-greeting">Hola Vicky.</div>
+      <div class="inicio-sub">¿Qué compraste ahora?</div>
+    </div>
+
+    <div class="inicio-center">
+      <div class="record-btn-wrap">
+        <div class="record-ring">
+          <button class="record-btn" id="recordBtn" onclick="toggleRecord()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#FF4D4D" stroke-width="1.8">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </button>
+        </div>
+        <div class="record-btn-label">Mantené presionado para grabar</div>
+      </div>
+
+      <div class="manual-section">
+        <div class="manual-label">Carga manual</div>
+        <div class="manual-row">
+          <span class="manual-currency">$</span>
+          <input class="manual-input amount-input" id="manualAmount" type="number" inputmode="decimal" placeholder="0.00">
+        </div>
+        <input class="manual-input" id="manualDesc" type="text" placeholder="Descripcion (opcional)">
+        <select class="category-select" id="manualCat">
+          <option value="">Categoria...</option>
+          <option value="Comida">Comida</option>
+          <option value="Salidas">Salidas</option>
+          <option value="Ropa">Ropa</option>
+          <option value="Psicologa">Psicologa</option>
+          <option value="Gastos hormiga">Gastos hormiga</option>
+          <option value="Nafta">Nafta</option>
+          <option value="Alquiler">Alquiler</option>
+          <option value="Gastos en comun">Gastos en comun</option>
+          <option value="Juan">Juan</option>
+        </select>
+        <div class="payment-group">
+          <div class="manual-label">Como pagaste</div>
+          <div class="payment-btns">
+            <button class="payment-btn selected" id="pay-efectivo" onclick="selectPayment('efectivo')">Efectivo</button>
+            <button class="payment-btn" id="pay-debito" onclick="selectPayment('debito')">Debito</button>
+            <button class="payment-btn" id="pay-credito" onclick="selectPayment('credito')">Tarjeta</button>
+          </div>
+        </div>
+        <button class="btn-add" onclick="addManualExpense()">Registrar gasto</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== MI MES ===== -->
+  <div class="screen" id="screen-mes">
+    <div class="mes-header">
+      <div class="mes-title">Mi Mes</div>
+      <div class="month-tabs" id="monthTabs"></div>
+    </div>
+    <div class="mes-body" id="mesBody"></div>
+  </div>
+
+  <!-- ===== INGRESOS ===== -->
+  <div class="screen" id="screen-ingresos">
+    <div class="screen-header">
+      <div class="screen-header-title">Ingresos</div>
+      <div class="screen-header-sub">Todos tus ingresos del mes</div>
+    </div>
+    <div class="screen-body">
+      <div id="totalIngresos" class="total-ingresos">
+        <div>
+          <div class="total-ingresos-label">Total este mes</div>
+        </div>
+        <div class="total-ingresos-value" id="totalIngresosVal">$0</div>
+      </div>
+
+      <div class="ingreso-list" id="ingresoList"></div>
+
+      <div class="add-fijo-form">
+        <div class="section-heading">Agregar ingreso</div>
+        <div class="form-group">
+          <label class="form-label">Descripcion</label>
+          <input class="form-input" id="ingresoName" type="text" placeholder="Sueldo, freelance, bono...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Monto</label>
+          <input class="form-input" id="ingresoAmount" type="number" inputmode="decimal" placeholder="0.00">
+        </div>
+        <button class="btn-primary" onclick="addIngreso()" style="background: var(--mint);">Agregar ingreso</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CONFIG ===== -->
+  <div class="screen" id="screen-config">
+    <div class="screen-header">
+      <div class="screen-header-title">Configuracion</div>
+    </div>
+    <div class="screen-body">
+      <div class="config-section">
+        <div class="config-item" onclick="configExport()">
+          <div class="config-item-icon" style="background: var(--indigo);">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <div class="config-item-info">
+            <div class="config-item-title">Exportar a CSV</div>
+            <div class="config-item-sub">Descarga todos tus registros</div>
+          </div>
+          <div class="config-chevron"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+        <div class="config-item" onclick="showToast('Presupuesto guardado')">
+          <div class="config-item-icon" style="background: var(--amber);">
+            <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div class="config-item-info">
+            <div class="config-item-title">Presupuesto mensual</div>
+            <div class="config-item-sub" id="budgetSub">Sin definir</div>
+          </div>
+          <div class="config-chevron"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+        <div class="config-item" onclick="configClearData()">
+          <div class="config-item-icon" style="background: var(--coral);">
+            <svg viewBox="0 0 24 24" fill="none"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+          </div>
+          <div class="config-item-info">
+            <div class="config-item-title">Borrar todos los datos</div>
+            <div class="config-item-sub">Esta accion no se puede deshacer</div>
+          </div>
+          <div class="config-chevron"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+      </div>
+
+      <div class="config-section">
+        <div class="config-item">
+          <div class="config-item-icon" style="background: #34C759;">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          </div>
+          <div class="config-item-info">
+            <div class="config-item-title">Conectar Google Sheets</div>
+            <div class="config-item-sub">Sincroniza tus datos automaticamente</div>
+          </div>
+          <div class="config-chevron"><svg viewBox="0 0 24 24" fill="none"><polyline points="9 18 15 12 9 6"/></svg></div>
+        </div>
+      </div>
+
+      <div style="text-align:center; padding: 16px 0;">
+        <div style="font-size:13px; color: var(--text-tertiary);">Mis Gastos — Vicky</div>
+        <div style="font-size:11px; color: var(--text-tertiary); margin-top:4px;">Version 1.0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== BOTTOM NAV ===== -->
+  <nav class="bottom-nav">
+    <div class="nav-item active" id="nav-inicio" onclick="navigate('inicio')">
+      <div class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </div>
+      <span class="nav-label">Inicio</span>
+    </div>
+    <div class="nav-item" id="nav-mes" onclick="navigate('mes')">
+      <div class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      </div>
+      <span class="nav-label">Mi Mes</span>
+    </div>
+    <div class="nav-item" id="nav-ingresos" onclick="navigate('ingresos')">
+      <div class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+      <span class="nav-label">Ingresos</span>
+    </div>
+    <div class="nav-item" id="nav-config" onclick="navigate('config')">
+      <div class="nav-icon">
+        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </div>
+      <span class="nav-label">Config</span>
+    </div>
+  </nav>
+
+  <!-- Recording overlay -->
+  <div class="recording-overlay" id="recordingOverlay">
+    <div class="recording-card" id="recordingCard">
+      <div class="recording-title">Escuchando...</div>
+      <div class="recording-wave">
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div><div class="wave-bar"></div><div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+      </div>
+      <div class="recording-timer" id="recordTimer">0:00</div>
+      <div class="recording-hint">Conta lo que compraste y cuanto gastaste</div>
+      <button class="btn-stop" onclick="stopRecord()">Detener</button>
+    </div>
+
+    <div class="transcription-card" id="transCard">
+      <div class="trans-label">Entendi esto</div>
+      <div class="trans-text" id="transText">Caramelo — $5</div>
+      <div class="trans-amount-row">
+        <span style="font-size:18px;font-weight:600;color:var(--text-secondary);">$</span>
+        <input class="trans-amount" id="transAmount" type="number" value="5">
+      </div>
+      <select class="form-input" id="transCat" style="background:var(--slate);font-family:-apple-system,'SF Pro Text','Helvetica Neue',sans-serif;">
+        <option value="">Categoria...</option>
+        <option value="Comida">Comida</option>
+        <option value="Salidas">Salidas</option>
+        <option value="Ropa">Ropa</option>
+        <option value="Psicologa">Psicologa</option>
+        <option value="Gastos hormiga">Gastos hormiga</option>
+        <option value="Nafta">Nafta</option>
+        <option value="Alquiler">Alquiler</option>
+        <option value="Gastos en comun">Gastos en comun</option>
+        <option value="Juan">Juan</option>
+      </select>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="font-size:11px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.7px;">Como pagaste</div>
+        <div class="payment-btns" id="transPayBtns">
+          <button class="trans-pay-btn selected" id="tpay-efectivo" onclick="selectTransPayment('efectivo')" style="flex:1;padding:8px 4px;background:var(--coral);border:1.5px solid var(--coral);border-radius:10px;font-family:-apple-system,'SF Pro Text','Helvetica Neue',sans-serif;font-size:12px;font-weight:700;color:#fff;cursor:pointer;">Efectivo</button>
+          <button class="trans-pay-btn" id="tpay-debito" onclick="selectTransPayment('debito')" style="flex:1;padding:8px 4px;background:var(--slate);border:1.5px solid var(--border);border-radius:10px;font-family:-apple-system,'SF Pro Text','Helvetica Neue',sans-serif;font-size:12px;font-weight:500;color:var(--text-secondary);cursor:pointer;">Debito</button>
+          <button class="trans-pay-btn" id="tpay-credito" onclick="selectTransPayment('credito')" style="flex:1;padding:8px 4px;background:var(--slate);border:1.5px solid var(--border);border-radius:10px;font-family:-apple-system,'SF Pro Text','Helvetica Neue',sans-serif;font-size:12px;font-weight:500;color:var(--text-secondary);cursor:pointer;">Tarjeta</button>
+        </div>
+      </div>
+      <div class="trans-actions">
+        <button class="btn-cancel" onclick="cancelRecord()">Cancelar</button>
+        <button class="btn-confirm" onclick="confirmRecord()">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+// ===== DATA LAYER =====
+const DB_KEY = 'vicky_gastos_v1';
+
+function loadDB() {
+  try {
+    const raw = localStorage.getItem(DB_KEY);
+    return raw ? JSON.parse(raw) : getEmptyDB();
+  } catch { return getEmptyDB(); }
+}
+
+function getEmptyDB() {
+  return { expenses: [], fijos: [], ingresos: [] };
+}
+
+function saveDB(db) {
+  localStorage.setItem(DB_KEY, JSON.stringify(db));
+}
+
+let db = loadDB();
+
+// Seed demo data if empty
+if (db.expenses.length === 0) {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth();
+  db.expenses = [
+    { id: 1, desc: 'Supermercado', amount: 3200, date: new Date(y,m,2).toISOString(), type: 'diario', category: 'Comida', payment: 'debito' },
+    { id: 2, desc: 'Cafe y medialunas', amount: 850, date: new Date(y,m,4).toISOString(), type: 'diario', category: 'Gastos hormiga', payment: 'efectivo' },
+    { id: 3, desc: 'Farmacia', amount: 1400, date: new Date(y,m,6).toISOString(), type: 'diario', category: 'Gastos hormiga', payment: 'debito' },
+    { id: 4, desc: 'Uber', amount: 2100, date: new Date(y,m,8).toISOString(), type: 'diario', category: 'Salidas', payment: 'credito' },
+    { id: 5, desc: 'YPF', amount: 18000, date: new Date(y,m,5).toISOString(), type: 'diario', category: 'Nafta', payment: 'debito' },
+    { id: 6, desc: 'Cena con Juan', amount: 4500, date: new Date(y,m,7).toISOString(), type: 'diario', category: 'Juan', payment: 'efectivo' },
+  ];
+  db.fijos = [
+    { id: 1, name: 'Expensas', amount: 45000, day: 10, color: '#3D5AFE' },
+    { id: 2, name: 'Tarjeta de credito', amount: 82000, day: 15, color: '#FF9500' },
+    { id: 3, name: 'Psicologa', amount: 12000, day: 20, color: '#FF4D4D' },
+  ];
+  db.ingresos = [
+    { id: 1, name: 'Sueldo', amount: 250000, date: new Date(y,m,1).toISOString() },
+  ];
+  saveDB(db);
+}
+
+// ===== NAVIGATION =====
+function navigate(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('screen-' + screen).classList.add('active');
+  document.getElementById('nav-' + screen).classList.add('active');
+  if (screen === 'mes') renderMes();
+  if (screen === 'ingresos') renderIngresos();
+}
+
+// ===== TOAST =====
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// ===== FORMAT =====
+function fmt(n) {
+  if (n >= 1000000) return '$' + (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000) return '$' + (n/1000).toFixed(n%1000===0?0:1) + 'K';
+  return '$' + n.toLocaleString('es-AR');
+}
+
+function fmtFull(n) {
+  return '$' + n.toLocaleString('es-AR', {minimumFractionDigits:0, maximumFractionDigits:0});
+}
+
+// ===== RECORDING =====
+let recording = false;
+let recordInterval = null;
+let recordSeconds = 0;
+let selectedPayment = 'efectivo';
+let selectedTransPayment = 'efectivo';
+
+function selectPayment(method) {
+  selectedPayment = method;
+  ['efectivo','debito','credito'].forEach(m => {
+    const btn = document.getElementById('pay-' + m);
+    if (btn) btn.classList.toggle('selected', m === method);
+  });
+}
+
+function selectTransPayment(method) {
+  selectedTransPayment = method;
+  ['efectivo','debito','credito'].forEach(m => {
+    const btn = document.getElementById('tpay-' + m);
+    if (!btn) return;
+    if (m === method) {
+      btn.style.background = 'var(--coral)'; btn.style.borderColor = 'var(--coral)';
+      btn.style.color = '#fff'; btn.style.fontWeight = '700';
+    } else {
+      btn.style.background = 'var(--slate)'; btn.style.borderColor = 'var(--border)';
+      btn.style.color = 'var(--text-secondary)'; btn.style.fontWeight = '500';
+    }
+  });
+}
+const mockPhrases = [
+  { text: 'Un caramelo', amount: 5 },
+  { text: 'Cafe en la esquina', amount: 1200 },
+  { text: 'Empanadas para el almuerzo', amount: 2800 },
+  { text: 'Farmacia — ibuprofeno', amount: 950 },
+  { text: 'Taxi al trabajo', amount: 3400 },
+  { text: 'Medialunas y jugo', amount: 680 },
+];
+
+function toggleRecord() {
+  if (!recording) startRecord();
+}
+
+function startRecord() {
+  recording = true;
+  document.getElementById('recordingOverlay').classList.add('active');
+  document.getElementById('recordingCard').style.display = 'flex';
+  document.getElementById('transCard').classList.remove('active');
+  recordSeconds = 0;
+  document.getElementById('recordTimer').textContent = '0:00';
+  recordInterval = setInterval(() => {
+    recordSeconds++;
+    const m = Math.floor(recordSeconds/60);
+    const s = recordSeconds % 60;
+    document.getElementById('recordTimer').textContent = m + ':' + String(s).padStart(2,'0');
+  }, 1000);
+}
+
+function stopRecord() {
+  clearInterval(recordInterval);
+  const mock = mockPhrases[Math.floor(Math.random() * mockPhrases.length)];
+  document.getElementById('recordingCard').style.display = 'none';
+  document.getElementById('transCard').classList.add('active');
+  document.getElementById('transText').textContent = mock.text;
+  document.getElementById('transAmount').value = mock.amount;
+  // reset trans payment
+  selectedTransPayment = 'efectivo';
+  selectTransPayment('efectivo');
+  document.getElementById('transCat').value = '';
+}
+
+function cancelRecord() {
+  recording = false;
+  clearInterval(recordInterval);
+  document.getElementById('recordingOverlay').classList.remove('active');
+}
+
+function confirmRecord() {
+  const desc = document.getElementById('transText').textContent;
+  const amount = parseFloat(document.getElementById('transAmount').value);
+  if (!amount || amount <= 0) return;
+  const cat = document.getElementById('transCat').value;
+  db.expenses.push({
+    id: Date.now(), desc, amount,
+    date: new Date().toISOString(), type: 'diario',
+    category: cat || '', payment: selectedTransPayment
+  });
+  saveDB(db);
+  cancelRecord();
+  showToast('Gasto registrado');
+}
+
+// ===== MANUAL EXPENSE =====
+function addManualExpense() {
+  const amount = parseFloat(document.getElementById('manualAmount').value);
+  const desc = document.getElementById('manualDesc').value.trim() || 'Gasto';
+  const cat = document.getElementById('manualCat').value;
+  if (!amount || amount <= 0) { showToast('Ingresa un monto'); return; }
+  db.expenses.push({
+    id: Date.now(), desc, amount,
+    date: new Date().toISOString(), type: 'diario',
+    category: cat || '', payment: selectedPayment
+  });
+  saveDB(db);
+  document.getElementById('manualAmount').value = '';
+  document.getElementById('manualDesc').value = '';
+  document.getElementById('manualCat').value = '';
+  selectPayment('efectivo');
+  showToast('Gasto registrado');
+}
+
+// ===== MI MES =====
+const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+let selectedMonth = null;
+
+function renderMes() {
+  const now = new Date();
+  // Build tabs: current + 3 back + Historico
+  const tabs = [];
+  for (let i = 0; i < 4; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    tabs.push({ label: i === 0 ? 'Este mes' : MONTHS[d.getMonth()], month: d.getMonth(), year: d.getFullYear() });
+  }
+  tabs.push({ label: 'Historico', month: -1, year: -1 });
+
+  if (selectedMonth === null) selectedMonth = 0;
+
+  const tabsEl = document.getElementById('monthTabs');
+  tabsEl.innerHTML = tabs.map((t,i) => `
+    <button class="month-tab ${i===selectedMonth?'active':''}" onclick="selectMonth(${i})">${t.label}</button>
+  `).join('');
+
+  const sel = tabs[selectedMonth];
+  const body = document.getElementById('mesBody');
+
+  if (sel.month === -1) {
+    renderHistorico(body);
+    return;
+  }
+
+  // Filter expenses for selected month
+  const expenses = db.expenses.filter(e => {
+    const d = new Date(e.date);
+    return d.getMonth() === sel.month && d.getFullYear() === sel.year;
+  });
+
+  // Fijos total
+  const fijoTotal = db.fijos.reduce((s,f) => s + f.amount, 0);
+  // Diarios total
+  const diariosTotal = expenses.reduce((s,e) => s + e.amount, 0);
+  const total = fijoTotal + diariosTotal;
+
+  // Ingresos for selected month
+  const ingresos = db.ingresos.filter(e => {
+    const d = new Date(e.date);
+    return d.getMonth() === sel.month && d.getFullYear() === sel.year;
+  });
+  const ingresosTotal = ingresos.reduce((s,i) => s + i.amount, 0);
+  const saldo = ingresosTotal - total;
+  const pct = ingresosTotal > 0 ? Math.min(100, Math.round(total/ingresosTotal*100)) : 0;
+
+  // Sort expenses by date desc
+  const sorted = [...expenses].sort((a,b) => new Date(b.date) - new Date(a.date));
+
+  const colors = ['#3D5AFE','#FF9500','#FF4D4D','#00C896','#AC4FFF','#00B4D8'];
+  const dot = (i) => colors[i % colors.length];
+
+  body.innerHTML = `
+    <div class="summary-grid">
+      <div class="summary-card wide">
+        <div>
+          <div class="summary-card-label">Gastado / Ingreso</div>
+          <div class="summary-card-value">${fmt(total)}</div>
+          <div class="summary-card-sub">de ${fmt(ingresosTotal)}</div>
+          <div class="progress-bar-wrap" style="width:180px; margin-top:10px;">
+            <div class="progress-bar" style="width:${pct}%"></div>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div class="summary-card-label">Saldo</div>
+          <div class="summary-card-value ${saldo>=0?'positive':'negative'}">${fmt(Math.abs(saldo))}</div>
+          <div class="summary-card-sub">${saldo>=0?'disponible':'en rojo'}</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card-label">Gastos diarios</div>
+        <div class="summary-card-value">${fmt(diariosTotal)}</div>
+        <div class="summary-card-sub">${expenses.length} registros</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-card-label">Gastos fijos</div>
+        <div class="summary-card-value">${fmt(fijoTotal)}</div>
+        <div class="summary-card-sub">${db.fijos.length} conceptos</div>
+      </div>
+    </div>
+
+    <div class="section-heading">Gastos diarios</div>
+    <div class="expense-list">
+      ${sorted.length === 0 ? '<div style="background:#fff;border-radius:16px;padding:20px;text-align:center;color:var(--text-tertiary);font-size:14px;">Sin gastos este mes</div>' :
+        sorted.map((e,i) => {
+          const payTag = e.payment ? `<span class="expense-tag tag-${e.payment === 'credito' ? 'credito' : e.payment}">${e.payment === 'credito' ? 'Tarjeta' : e.payment.charAt(0).toUpperCase() + e.payment.slice(1)}</span>` : '';
+          const catTag = e.category ? `<span class="expense-tag tag-cat">${e.category}</span>` : '';
+          return `
+          <div class="expense-item">
+            <div class="expense-dot" style="background:${dot(i)}"></div>
+            <div class="expense-info">
+              <div class="expense-desc">${e.desc}</div>
+              <div class="expense-date">${new Date(e.date).toLocaleDateString('es-AR',{day:'numeric',month:'short'})}</div>
+              ${(payTag||catTag) ? `<div class="expense-tags">${payTag}${catTag}</div>` : ''}
+            </div>
+            <div class="expense-amount">${fmtFull(e.amount)}</div>
+          </div>`;
+        }).join('')}
+    </div>
+
+    <div class="section-heading">Gastos fijos del mes</div>
+    <div class="expense-list">
+      ${db.fijos.map(f => `
+        <div class="expense-item">
+          <div class="expense-dot" style="background:${f.color}"></div>
+          <div class="expense-info">
+            <div class="expense-desc">${f.name}</div>
+            <div class="expense-date">Dia ${f.day} de cada mes</div>
+          </div>
+          <div class="expense-amount">${fmtFull(f.amount)}</div>
+        </div>`).join('')}
+    </div>
+
+    <div class="section-heading">En que gaste mas</div>
+    <div class="chart-wrap" style="padding-bottom:24px;">
+      <canvas id="pieChart" height="260"></canvas>
+      <div id="pieLegend" style="margin-top:18px;display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+  `;
+
+  // Pie chart by category (diarios only)
+  setTimeout(() => {
+    const catTotals = {};
+    expenses.forEach(e => {
+      const cat = e.category || 'Sin categoria';
+      catTotals[cat] = (catTotals[cat] || 0) + e.amount;
+    });
+
+    const catColors = {
+      'Comida':          '#FF4D4D',
+      'Salidas':         '#FF9500',
+      'Ropa':            '#AC4FFF',
+      'Psicologa':       '#3D5AFE',
+      'Gastos hormiga':  '#00B4D8',
+      'Nafta':           '#FF6B35',
+      'Alquiler':        '#2EC4B6',
+      'Gastos en comun': '#E71D36',
+      'Juan':            '#F72585',
+      'Gastos fijos':    '#6E6E73',
+      'Sin categoria':   '#AEAEB2',
+    };
+
+    const labels = Object.keys(catTotals);
+    const values = labels.map(l => catTotals[l]);
+    const bgColors = labels.map(l => catColors[l] || '#AEAEB2');
+    const totalPie = values.reduce((a,b) => a+b, 0);
+
+    const ctx = document.getElementById('pieChart');
+    if (!ctx) return;
+    new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: bgColors,
+          borderWidth: 2,
+          borderColor: '#F5F5F7',
+          hoverOffset: 6,
+        }]
+      },
+      options: {
+        cutout: '58%',
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => ` ${fmtFull(ctx.raw)} (${Math.round(ctx.raw/totalPie*100)}%)`
+            },
+            bodyFont: { family: '-apple-system', size: 13 },
+            titleFont: { family: '-apple-system', size: 13, weight: '600' },
+          }
+        }
+      }
+    });
+
+    // Custom legend
+    const legend = document.getElementById('pieLegend');
+    if (legend) {
+      legend.innerHTML = labels.map((l,i) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:12px;height:12px;border-radius:4px;background:${bgColors[i]};flex-shrink:0;"></div>
+            <span style="font-size:14px;font-weight:500;color:var(--text-primary);">${l}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:12px;color:var(--text-tertiary);">${Math.round(values[i]/totalPie*100)}%</span>
+            <span style="font-size:14px;font-weight:600;color:var(--text-primary);">${fmtFull(values[i])}</span>
+          </div>
+        </div>`).join('');
+    }
+  }, 50);
+}
+
+function selectMonth(i) {
+  selectedMonth = i;
+  renderMes();
+}
+
+function renderHistorico(body) {
+  // Group expenses by month
+  const byMonth = {};
+  db.expenses.forEach(e => {
+    const d = new Date(e.date);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    if (!byMonth[key]) byMonth[key] = { label: MONTHS[d.getMonth()] + ' ' + d.getFullYear(), total: 0, fijos: 0 };
+    byMonth[key].total += e.amount;
+  });
+
+  const fijoTotal = db.fijos.reduce((s,f) => s + f.amount, 0);
+  Object.values(byMonth).forEach(m => m.total += fijoTotal);
+
+  const keys = Object.keys(byMonth).sort();
+  const labels = keys.map(k => byMonth[k].label);
+  const values = keys.map(k => byMonth[k].total);
+
+  body.innerHTML = `
+    <div class="chart-wrap">
+      <div class="chart-title">Gastos por mes</div>
+      <canvas id="histChart" height="220"></canvas>
+    </div>
+    <div class="section-heading">Resumen mensual</div>
+    <div class="expense-list">
+      ${keys.map(k => `
+        <div class="expense-item">
+          <div class="expense-dot" style="background:var(--indigo)"></div>
+          <div class="expense-info"><div class="expense-desc">${byMonth[k].label}</div></div>
+          <div class="expense-amount">${fmtFull(byMonth[k].total)}</div>
+        </div>`).join('')}
+    </div>
+  `;
+
+  setTimeout(() => {
+    const ctx = document.getElementById('histChart');
+    if (!ctx) return;
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: 'rgba(61,90,254,.15)',
+          borderColor: 'rgba(61,90,254,1)',
+          borderWidth: 2,
+          borderRadius: 8,
+          borderSkipped: false,
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          y: {
+            grid: { color: 'rgba(0,0,0,.06)' },
+            ticks: {
+              font: { family: '-apple-system', size: 11 },
+              color: '#6E6E73',
+              callback: v => fmt(v)
+            }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { font: { family: '-apple-system', size: 11 }, color: '#6E6E73' }
+          }
+        }
+      }
+    });
+  }, 50);
+}
+
+// ===== FIJOS =====
+function renderFijos() {
+  const list = document.getElementById('fijoList');
+  if (db.fijos.length === 0) {
+    list.innerHTML = '<div style="background:#fff;border-radius:16px;padding:20px;text-align:center;color:var(--text-tertiary);font-size:14px;">Sin gastos fijos cargados</div>';
+    return;
+  }
+  const colors = ['#3D5AFE','#FF9500','#FF4D4D','#00C896','#AC4FFF'];
+  list.innerHTML = db.fijos.map(f => `
+    <div class="fijo-item">
+      <div class="fijo-color" style="background:${f.color}"></div>
+      <div class="fijo-info">
+        <div class="fijo-name">${f.name}</div>
+        <div class="fijo-freq">Dia ${f.day} de cada mes</div>
+      </div>
+      <div class="fijo-amount">${fmtFull(f.amount)}</div>
+      <button class="fijo-delete" onclick="deleteFijo(${f.id})">
+        <svg viewBox="0 0 24 24" fill="none"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      </button>
+    </div>`).join('');
+}
+
+function addFijo() {
+  const name = document.getElementById('fijoName').value.trim();
+  const amount = parseFloat(document.getElementById('fijoAmount').value);
+  const day = parseInt(document.getElementById('fijoDay').value) || 1;
+  if (!name || !amount) { showToast('Completa nombre y monto'); return; }
+  const colors = ['#3D5AFE','#FF9500','#FF4D4D','#00C896','#AC4FFF','#FF6B6B'];
+  db.fijos.push({ id: Date.now(), name, amount, day, color: colors[db.fijos.length % colors.length] });
+  saveDB(db);
+  document.getElementById('fijoName').value = '';
+  document.getElementById('fijoAmount').value = '';
+  document.getElementById('fijoDay').value = '';
+  renderFijos();
+  showToast('Gasto fijo agregado');
+}
+
+function deleteFijo(id) {
+  db.fijos = db.fijos.filter(f => f.id !== id);
+  saveDB(db);
+  renderFijos();
+  showToast('Eliminado');
+}
+
+// ===== INGRESOS =====
+function renderIngresos() {
+  const now = new Date();
+  const thisMonth = db.ingresos.filter(i => {
+    const d = new Date(i.date);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  });
+  const total = thisMonth.reduce((s,i) => s + i.amount, 0);
+  document.getElementById('totalIngresosVal').textContent = fmtFull(total);
+
+  const list = document.getElementById('ingresoList');
+  const allSorted = [...db.ingresos].sort((a,b) => new Date(b.date) - new Date(a.date));
+  if (allSorted.length === 0) {
+    list.innerHTML = '<div style="background:#fff;border-radius:16px;padding:20px;text-align:center;color:var(--text-tertiary);font-size:14px;">Sin ingresos registrados</div>';
+    return;
+  }
+  list.innerHTML = allSorted.map(i => `
+    <div class="ingreso-item">
+      <div class="ingreso-dot"></div>
+      <div class="ingreso-info">
+        <div class="ingreso-name">${i.name}</div>
+        <div class="ingreso-date">${new Date(i.date).toLocaleDateString('es-AR',{day:'numeric',month:'long',year:'numeric'})}</div>
+      </div>
+      <div class="ingreso-amount">${fmtFull(i.amount)}</div>
+      <button class="ingreso-delete" onclick="deleteIngreso(${i.id})">
+        <svg viewBox="0 0 24 24" fill="none"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+      </button>
+    </div>`).join('');
+}
+
+function addIngreso() {
+  const name = document.getElementById('ingresoName').value.trim();
+  const amount = parseFloat(document.getElementById('ingresoAmount').value);
+  if (!name || !amount) { showToast('Completa los campos'); return; }
+  db.ingresos.push({ id: Date.now(), name, amount, date: new Date().toISOString() });
+  saveDB(db);
+  document.getElementById('ingresoName').value = '';
+  document.getElementById('ingresoAmount').value = '';
+  renderIngresos();
+  showToast('Ingreso registrado');
+}
+
+function deleteIngreso(id) {
+  db.ingresos = db.ingresos.filter(i => i.id !== id);
+  saveDB(db);
+  renderIngresos();
+  showToast('Eliminado');
+}
+
+// ===== CONFIG =====
+function configExport() {
+  const rows = [['Fecha','Descripcion','Monto','Tipo']];
+  db.expenses.forEach(e => rows.push([
+    new Date(e.date).toLocaleDateString('es-AR'), e.desc, e.amount, e.type
+  ]));
+  db.fijos.forEach(f => rows.push(['Fijo', f.name, f.amount, 'fijo']));
+  db.ingresos.forEach(i => rows.push([new Date(i.date).toLocaleDateString('es-AR'), i.name, i.amount, 'ingreso']));
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'mis-gastos.csv'; a.click();
+  showToast('CSV descargado');
+}
+
+function configClearData() {
+  if (confirm('Esto borrara TODOS tus datos. Confirmas?')) {
+    db = getEmptyDB();
+    saveDB(db);
+    showToast('Datos eliminados');
+  }
+}
+
+// Init
+renderFijos();
+renderIngresos();
+</script>
+</body>
+</html>
